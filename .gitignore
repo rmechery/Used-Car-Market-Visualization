@@ -1,0 +1,15 @@
+# Data (too large for git; download from Kaggle, see README)
+*.csv
+*.zip
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# OS / editor
+.DS_Store
+.vscode/
+
+# Private notes
+hidden/
