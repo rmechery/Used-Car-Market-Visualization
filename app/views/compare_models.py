@@ -1,30 +1,21 @@
-"""Deliverable 1, task 1.3 (compare models): streamlit run deliverable_1/app.py"""
-import pandas as pd
+"""Task 1.3: compare a few models on price, age, mileage, and specs."""
 import streamlit as st
 
-from make_figures import HERE, SNAPSHOT_YEAR, load_listings
+from app.data import SNAPSHOT_YEAR, load_matched_listings, load_specs
 
-SPECS_CSV = HERE.parent / "car_features_and_msrp.csv"
 MIN_LISTINGS = 100
-SPECS = {"Engine HP": "Horsepower", "highway MPG": "Highway MPG", "city mpg": "City MPG"}
+SPECS = {"hp": "Horsepower", "highway_mpg": "Highway MPG", "city_mpg": "City MPG"}
 
 
 @st.cache_data
 def load_model_summary():
-    """One row per model: median listing values joined to median specs by make and model name."""
-    listings = load_listings()
+    """One row per model: median listing values joined to median specs across model years."""
+    listings = load_matched_listings()
     listings = listings.assign(age=SNAPSHOT_YEAR - listings.year)
-
-    specs = pd.read_csv(SPECS_CSV)
-    specs["manufacturer"] = specs.Make.str.lower()
-    specs["model"] = specs.Model.str.lower()
-    specs["Car"] = specs.Make + " " + specs.Model
-    specs = specs.groupby(["manufacturer", "model", "Car"], as_index=False)[list(SPECS)].median()
-
-    # Exact name match only: listings with a trim in the name ("civic lx") are left out.
+    specs = load_specs().groupby(["manufacturer", "model"], as_index=False)[list(SPECS)].median()
     summary = (
         listings.merge(specs, on=["manufacturer", "model"])
-        .groupby("Car")
+        .groupby("car")
         .agg(
             Listings=("price", "size"),
             Price=("price", "median"),
@@ -40,13 +31,10 @@ def load_model_summary():
 summary = load_model_summary()
 
 st.title("Compare used car models")
+st.caption("Task 1.3 · first-time buyer")
 pick_models, pick_attribute = st.columns([3, 1])
-selected = pick_models.multiselect(
-    "Models to compare",
-    summary.index,
-    default=["Honda Civic", "Hyundai Elantra", "Toyota Corolla"],
-    max_selections=5,
-)
+defaults = [car for car in ["Honda Civic", "Hyundai Elantra", "Toyota Corolla"] if car in summary.index]
+selected = pick_models.multiselect("Models to compare", summary.index, default=defaults, max_selections=5)
 attribute = pick_attribute.selectbox("Attribute to chart", summary.columns.drop("Listings"))
 if not selected:
     st.info("Pick at least one model.")
